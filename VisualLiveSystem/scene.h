@@ -44,6 +44,7 @@ private:
     QTime m_QTime;
     float m_time;
     int m_id;
+    bool m_valid;
 };
 
 #endif // SCENE_H

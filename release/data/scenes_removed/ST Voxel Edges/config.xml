@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<Scene>
+	<param id="0" value=""/>
+	<param id="1" value=""/>
+	<param id="2" value=""/>
+	<param id="3" value=""/>
+
+	<layer id="0" value="Voxel Edges.glsl">
+		<channel type="image" id="iChannel0" value="st_f735bee5b64ef98879dc618b016ecf7939a5756040c2cde21ccb15e69a6e1cfb.png"/>
+		<channel type="image" id="iChannel1" value="st_52d2a8f514c4fd2d9866587f4d7b2a5bfa1a11a0e772077d7682deb8b3b517e5.png"/>
+		<channel type="image" id="iChannel2" value="st_fb918796edc3d2221218db0811e240e72e340350008338b0c07a52bd353666a6.png"/>
+	</layer>
+
+	<!--
+	<layer id="1" value="godrays.glsl">
+	</layer>
+	-->
+</Scene>

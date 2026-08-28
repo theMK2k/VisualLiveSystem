@@ -1,7 +1,9 @@
 #include <QTextStream>
 #include <QtXml>
+#include <QDir>
 #include <QMessageBox>
 #include <iostream>
+#include "../configpath.h"
 #include "editorwidget.h"
 #include "ui_editorwidget.h"
 
@@ -39,7 +41,7 @@ void EditorWidget::loadScene(QString filename)
     if (!dom.setContent(xml_doc.readAll()))
     {
         xml_doc.close();
-        QMessageBox::warning(NULL, QString("Read ")+filename+QString(" config"), "Le document XML n'a pas pu être attribué à l'objet QDomDocument.");
+        QMessageBox::warning(NULL, QString("Read ")+filename+QString(" config"), "Le document XML n'a pas pu Ãªtre attribuÃ© Ã  l'objet QDomDocument.");
         return;
     }
     xml_doc.close();
@@ -58,7 +60,8 @@ void EditorWidget::loadScene(QString filename)
         {
             QString file( element.attribute("value", "none") );
             TextEditor *t = new TextEditor();
-            t->open(path+file, element.attribute("id", "-1").toInt());
+            t->open(ConfigPath::resolve(QDir(path), file),
+                    element.attribute("id", "-1").toInt());
             connect(t, SIGNAL(shaderUpdate(QString,int)), this, SLOT(shaderUpdate(QString,int)));
             ui->tab->addTab(t,file.mid(0,file.length()-5));
         }

@@ -39,6 +39,7 @@ public:
     //Relais RtAudio (inutile de passer en stop)
     inline RtAudio::Api getCurrentApi() { return _driver->getCurrentApi(); }
     inline unsigned int getDeviceCount()  { return _driver->getDeviceCount(); }
+    inline std::vector<unsigned int> getDeviceIds() { return _driver->getDeviceIds(); }
     inline RtAudio::DeviceInfo getDeviceInfo(unsigned int device) { return _driver->getDeviceInfo(device); }
 
     inline QMutex& getMixerMutex() {return _mutexMixer;}

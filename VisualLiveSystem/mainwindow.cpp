@@ -9,6 +9,19 @@
 #include "soundmanager.h"
 #include "midiwindow.h"
 
+#include <QAction>
+#include <QMessageBox>
+
+namespace
+{
+void showAndActivate(QWidget *window)
+{
+    window->show();
+    window->raise();
+    window->activateWindow();
+}
+}
+
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -25,7 +38,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_master = new MasterWidget(ui->widget);
     m_visualManager = new VisualManager();
     m_proj = new ProjectorWidget(ui->widget);
-    //m_soundManager = new SoundManager(*(Core::instance()->audioPipe));
+    m_soundManager = new SoundManager(*(Core::instance()->audioPipe));
     m_midiManager = new MidiWindow();
 
     addDockWidget(Qt::LeftDockWidgetArea, m_chan[0]);
@@ -40,15 +53,23 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->toolBar->addAction(ui->actionProjector);
     //ui->toolBar->addSeparator();
     //ui->toolBar->addAction(ui->actionPreferences);
-/*
+
     //Connections
-    connect(ui->actionVisual_Manager, SIGNAL(triggered()), m_visualManager, SLOT(show()));
-    connect(ui->actionProjector, SIGNAL(triggered()), m_proj, SLOT(show()));
-    connect(ui->actionControllers_manager, SIGNAL(triggered()), m_midiManager, SLOT(show()));
+    connect(ui->actionVisual_Manager, &QAction::triggered, this,
+            [this]() { showAndActivate(m_visualManager); });
+    connect(ui->actionProjector, &QAction::triggered, this,
+            [this]() { showAndActivate(m_proj); });
+    connect(ui->actionControllers_manager, &QAction::triggered, this,
+            [this]() { showAndActivate(m_midiManager); });
+    connect(ui->actionSound_manager, &QAction::triggered, this,
+            [this]() { showAndActivate(m_soundManager); });
+    connect(ui->actionPreferences, &QAction::triggered,
+            this, &MainWindow::showPreferencesInformation);
+    connect(ui->actionQuit, &QAction::triggered, this, &QWidget::close);
+
     connect(m_visualManager, SIGNAL(newListFX(QList<QListWidgetItem*>)), ui->widget, SLOT(loadPostEffects(QList<QListWidgetItem*>)));
     connect(m_visualManager, SIGNAL(newListChanA(QList<QListWidgetItem*>)), m_chan[0], SLOT(updateList(QList<QListWidgetItem*>)));
     connect(m_visualManager, SIGNAL(newListChanB(QList<QListWidgetItem*>)), m_chan[1], SLOT(updateList(QList<QListWidgetItem*>)));
-    connect(ui->actionSound_manager, SIGNAL(triggered()), m_soundManager, SLOT(show()));
 
     connect(m_master, SIGNAL(finalPostFXDataChanged(float,float,float,float,float,float,float)),
             ui->widget, SLOT(updateFinalPostFXData(float,float,float,float,float,float,float)));
@@ -79,10 +100,16 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(m_midiManager, SIGNAL(transitionDown()), m_master, SLOT(transitionDown()));
 
     connect(m_midiManager, SIGNAL(switchDisplay()), ui->widget, SLOT(transition()));
+}
 
-
-    Core::instance()->audioPipe->prepare();
-    Core::instance()->audioPipe->start();*/
+void MainWindow::showPreferencesInformation()
+{
+    QMessageBox::information(
+        this,
+        tr("Preferences"),
+        tr("This version does not have a separate Preferences window.\n\n"
+           "Use Sound manager for audio settings, Visual manager for scenes "
+           "and rendering, and Controllers manager for MIDI mappings."));
 }
 
 MainWindow::~MainWindow()

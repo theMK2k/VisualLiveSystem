@@ -1,7 +1,9 @@
 #include <QTextStream>
 #include <QtXml>
+#include <QDir>
 #include <QMessageBox>
 #include <iostream>
+#include "../configpath.h"
 #include "core.h"
 #include "fast2dquad.h"
 #include "scene.h"
@@ -136,7 +138,7 @@ void Scene::read(const char *filename)
     if (!dom.setContent(xml_doc.readAll()))
     {
         xml_doc.close();
-        QMessageBox::warning(NULL, QString("Read ")+filename+QString(" config"), "Le document XML n'a pas pu être attribué à l'objet QDomDocument.");
+        QMessageBox::warning(NULL, QString("Read ")+filename+QString(" config"), "Le document XML n'a pas pu Ãªtre attribuÃ© Ã  l'objet QDomDocument.");
         return;
     }
     xml_doc.close();
@@ -256,7 +258,8 @@ void Scene::read(const char *filename)
             int ok;
             if(filePath != "none")
             {
-                QFile file(path+filePath);
+                const QString shaderPath = ConfigPath::resolve(QDir(path), filePath);
+                QFile file(shaderPath);
                 QString strings;
                 if (file.open(QIODevice::ReadOnly | QIODevice::Text))
                 {
@@ -310,7 +313,10 @@ void Scene::read(const char *filename)
                         if( e.attribute("type", "") == "image" )
                         {
                             m_layer[id].channel[textureID] = new Texture();
-                            m_layer[id].channel[textureID]->load("./data/textures/"+e.attribute("value", "none").toStdString());
+                            const QDir textureDirectory(QDir::current().filePath("data/textures"));
+                            const QString texturePath = ConfigPath::resolve(
+                                textureDirectory, e.attribute("value", "none"));
+                            m_layer[id].channel[textureID]->load(texturePath.toStdString());
                         }
                         else if( e.attribute("type", "") == "layer" )
                         {

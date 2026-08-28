@@ -48,23 +48,23 @@ void BassDecoder::reset()
 bool BassDecoder::open(QString filename)
 {
   reset();
-  if (_music=(HANDLE)BASS_MusicLoad(FALSE, (void*) filename.toStdString().c_str(), 0,0,BASS_MUSIC_PRESCAN | BASS_MUSIC_DECODE | BASS_SAMPLE_FLOAT,Signal::frequency))
+  if (_music=(DWORD)BASS_MusicLoad(FALSE, (void*) filename.toStdString().c_str(), 0,0,BASS_MUSIC_PRESCAN | BASS_MUSIC_DECODE | BASS_SAMPLE_FLOAT,Signal::frequency))
 	{
 		_mod=true;
 	}
-    else if (_music=(HANDLE)BASS_StreamCreateFile(FALSE, (void*) filename.toStdString().c_str(), 0,0,BASS_STREAM_PRESCAN |BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT))
+    else if (_music=(DWORD)BASS_StreamCreateFile(FALSE, (void*) filename.toStdString().c_str(), 0,0,BASS_STREAM_PRESCAN |BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT))
 	{
 		_mod=false;
 	}
-    else if (_music=(HANDLE)BASS_FLAC_StreamCreateFile(FALSE, (void*) filename.toStdString().c_str(), 0,0,BASS_STREAM_PRESCAN | BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT))
+    else if (_music=(DWORD)BASS_FLAC_StreamCreateFile(FALSE, (void*) filename.toStdString().c_str(), 0,0,BASS_STREAM_PRESCAN | BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT))
 	{
 		_mod=false;
 	}
-    else if (_music=(HANDLE)BASS_StreamCreateURL(filename.toStdString().c_str(),0,BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT, (DOWNLOADPROC*) 0,(void*)0))
+    else if (_music=(DWORD)BASS_StreamCreateURL(filename.toStdString().c_str(),0,BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT, (DOWNLOADPROC*) 0,(void*)0))
 	{
 		_mod=false;
 	}
-    else if (_music=(HANDLE)BASS_FLAC_StreamCreateURL(filename.toStdString().c_str(),0,BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT, (DOWNLOADPROC*) 0,(void*)0))
+    else if (_music=(DWORD)BASS_FLAC_StreamCreateURL(filename.toStdString().c_str(),0,BASS_STREAM_DECODE | BASS_SAMPLE_FLOAT, (DOWNLOADPROC*) 0,(void*)0))
 	{
 		_mod=false;
 	}

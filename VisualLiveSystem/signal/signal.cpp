@@ -141,8 +141,8 @@ void Signal::globalConfigurationFromPow2(unsigned int f,  unsigned short pow2)
 
 void Signal::saturate(sample min, sample max)
 {
-  const unsigned int size = size;
-  for (unsigned int i=0; i < Signal::size;i++)
+  const unsigned int size = Signal::size;
+  for (unsigned int i=0; i < size;i++)
   {
     if (samples[i] > max) samples[i] = max;
     else if (samples[i] < min) samples[i] = min;
@@ -152,8 +152,8 @@ void Signal::saturate(sample min, sample max)
 sample Signal::energy()
 {
   sample energy=0;
-  const unsigned int size = size;
-  for (unsigned int i=0; i < Signal::size;i++)
+  const unsigned int size = Signal::size;
+  for (unsigned int i=0; i < size;i++)
   {
     energy += samples[i]*samples[i];
   }
@@ -205,7 +205,7 @@ previous2(50),
 dprevious(0),
 dprevious2(0)
 {
-  memset(samples,0,1024);
+  memset(samples, 0, sizeof(samples));
 }
 VisualSignal::~VisualSignal() {
 }

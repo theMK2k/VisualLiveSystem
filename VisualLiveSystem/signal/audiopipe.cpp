@@ -4,7 +4,33 @@
 #include <QMessageBox>
 #include <algorithm>
 
-#define BPM_MIN 30.0;
+#define BPM_MIN 30.0
+
+namespace {
+
+RtAudio::Api availableApiOrDefault(RtAudio::Api api)
+{
+    if (api == RtAudio::UNSPECIFIED)
+        return api;
+
+    std::vector<RtAudio::Api> compiledApis;
+    RtAudio::getCompiledApi(compiledApis);
+    if (std::find(compiledApis.begin(), compiledApis.end(), api) != compiledApis.end())
+        return api;
+
+    return RtAudio::UNSPECIFIED;
+}
+
+int availableDeviceOrDefault(const std::vector<unsigned int>& devices, int configured, unsigned int fallback)
+{
+    if (configured >= 0 &&
+        std::find(devices.begin(), devices.end(), static_cast<unsigned int>(configured)) != devices.end())
+        return configured;
+
+    return static_cast<int>(fallback);
+}
+
+}
 
 QString RtAudioApiToQString(RtAudio::Api api)
 {
@@ -42,23 +68,30 @@ AudioPipe::AudioPipe(QObject *parent) :
     _mixer(NULL),
     _stopThread(false)
 {
-    std::cout << "pouet" << std::endl;
-    RtAudio::Api api = QStringToRtAudioApi(Core::instance()->settings.value("Audio/Driver","Default").toString());
-    std::cout << "pouet" << std::endl;
+    const RtAudio::Api configuredApi = QStringToRtAudioApi(
+        Core::instance()->settings.value("Audio/Driver", "Default").toString());
+    const RtAudio::Api api = availableApiOrDefault(configuredApi);
+    if (api != configuredApi)
+        Core::instance()->settings.setValue("Audio/Driver", "Default");
+
     _driver = new RtAudio(api);
-    std::cout << "pouet" << std::endl;
     _driver->showWarnings();
 
-    std::cout << "pouet" << std::endl;
-    _deviceOutId=Core::instance()->settings.value("Audio/DeviceOutId",_driver->getDefaultOutputDevice()).toInt();
-    _deviceInId=Core::instance()->settings.value("Audio/DeviceInId",_driver->getDefaultInputDevice()).toInt();
+    const std::vector<unsigned int> devices = _driver->getDeviceIds();
+    _deviceOutId = availableDeviceOrDefault(
+        devices,
+        Core::instance()->settings.value("Audio/DeviceOutId", -1).toInt(),
+        _driver->getDefaultOutputDevice());
+    _deviceInId = availableDeviceOrDefault(
+        devices,
+        Core::instance()->settings.value("Audio/DeviceInId", -1).toInt(),
+        _driver->getDefaultInputDevice());
 
-    std::cout << "pouet" << std::endl;
     connect(this,SIGNAL(critical_error(QString,QString)),SLOT(show_critical(QString,QString)));
 
 
-    _latencySignalsR.resize(Signal::refreshRate * 60 /(BPM_MIN));
-    _latencySignalsL.resize(Signal::refreshRate * 60 /(BPM_MIN));
+    _latencySignalsR.resize(Signal::refreshRate * 60 / BPM_MIN);
+    _latencySignalsL.resize(Signal::refreshRate * 60 / BPM_MIN);
     _latencyTimeBuffer = 0;
     _latencyCurrentBuffer = 0;
 
@@ -84,26 +117,24 @@ void AudioPipe::prepare()
         oParams.firstChannel = 0;
     }
 
-    try
-    {
-        if ( _deviceInId != -1 && _deviceOutId != -1 )
-            _driver->openStream( &oParams, &iParams, RTAUDIO_FLOAT32, Signal::frequency,
-                                 (unsigned int*)&Signal::size, &AudioPipe::rtaudio_callback, this );
-        else if (_deviceInId != -1)
-            _driver->openStream( 0, &iParams, RTAUDIO_FLOAT32, Signal::frequency,
-                                 (unsigned int*)&Signal::size, &AudioPipe::rtaudio_callback, this );
-        else if (_deviceOutId != -1)
-            _driver->openStream( &oParams, 0, RTAUDIO_FLOAT32, Signal::frequency,
-                                 (unsigned int*)&Signal::size, &AudioPipe::rtaudio_callback, this );
-        else {
-            emit critical_error("Error in AudioPipe thread", "No devices selected !");
-            if ( _driver->isStreamOpen() ) _driver->closeStream();
-            return;
-        }
+    RtAudioErrorType error = RTAUDIO_NO_ERROR;
+    if ( _deviceInId != -1 && _deviceOutId != -1 )
+        error = _driver->openStream( &oParams, &iParams, RTAUDIO_FLOAT32, Signal::frequency,
+                                    (unsigned int*)&Signal::size, &AudioPipe::rtaudio_callback, this );
+    else if (_deviceInId != -1)
+        error = _driver->openStream( 0, &iParams, RTAUDIO_FLOAT32, Signal::frequency,
+                                    (unsigned int*)&Signal::size, &AudioPipe::rtaudio_callback, this );
+    else if (_deviceOutId != -1)
+        error = _driver->openStream( &oParams, 0, RTAUDIO_FLOAT32, Signal::frequency,
+                                    (unsigned int*)&Signal::size, &AudioPipe::rtaudio_callback, this );
+    else {
+        emit critical_error("Error in AudioPipe thread", "No devices selected !");
+        return;
     }
-    catch ( RtAudioError& e )
+
+    if (error != RTAUDIO_NO_ERROR)
     {
-        emit critical_error("Error in AudioPipe : open stream", QString(e.getMessage().c_str()));
+        emit critical_error("Error in AudioPipe : open stream", QString::fromStdString(_driver->getErrorText()));
         if ( _driver->isStreamOpen() ) _driver->closeStream();
         return;
     }
@@ -121,13 +152,9 @@ void AudioPipe::run() {
     Signal left;
     Signal right;
 
-    try
+    if (_driver->startStream() != RTAUDIO_NO_ERROR)
     {
-        _driver->startStream();
-    }
-    catch ( RtAudioError& e )
-    {
-        emit critical_error("Error in AudioPipe : start stream", QString(e.getMessage().c_str()));
+        emit critical_error("Error in AudioPipe : start stream", QString::fromStdString(_driver->getErrorText()));
         if ( _driver->isStreamOpen() ) _driver->closeStream();
         return;
     }
@@ -193,8 +220,12 @@ void AudioPipe::setApi(RtAudio::Api api)
 {
     stop();
     delete _driver;
-    _driver = new RtAudio(api);
+    _driver = new RtAudio(availableApiOrDefault(api));
     _driver->showWarnings();
+
+    const std::vector<unsigned int> devices = _driver->getDeviceIds();
+    _deviceOutId = availableDeviceOrDefault(devices, _deviceOutId, _driver->getDefaultOutputDevice());
+    _deviceInId = availableDeviceOrDefault(devices, _deviceInId, _driver->getDefaultInputDevice());
 }
 
 
@@ -221,17 +252,17 @@ int AudioPipe::rtaudio_callback( void *outputBuffer, void *inputBuffer, unsigned
     const unsigned int size = nBufferFrames > Signal::size ? Signal::size : nBufferFrames;
 
 
-    if (_latencyTimeBuffer)
+    if (pipe->_latencyTimeBuffer)
     {
 
       unsigned int k=0;
-      unsigned int rb=_(latencyCurrentBuffer+_latencyTimeBuffer)%_latencySignalsL.size();
+      unsigned int rb=(pipe->_latencyCurrentBuffer+pipe->_latencyTimeBuffer)%pipe->_latencySignalsL.size();
       if (inputBuffer)
       {
 
         //On enregistre le signal recu pour le diffuser plus tard
-        Signal* recordR = &(_latencySignalsR[rb]);
-        Signal* recordL = &(_latencySignalsL[rb]);
+        Signal* recordR = &(pipe->_latencySignalsR[rb]);
+        Signal* recordL = &(pipe->_latencySignalsL[rb]);
         for (unsigned int i=0; i< size; ++i) {
 
           recordR->samples[i] = ((sample*) inputBuffer)[k++];
@@ -240,13 +271,12 @@ int AudioPipe::rtaudio_callback( void *outputBuffer, void *inputBuffer, unsigned
 
         //On envois le signal retarder pour traitment fft etc...
         pipe->_mutexIO.lock();
-        Signal* playR = &(_latencySignalsR[_latencyCurrentBuffer]);
-        Signal* playL = &(_latencySignalsL[_latencyCurrentBuffer]);
+        Signal* playR = &(pipe->_latencySignalsR[pipe->_latencyCurrentBuffer]);
+        Signal* playL = &(pipe->_latencySignalsL[pipe->_latencyCurrentBuffer]);
         if (inputBuffer) {
-          k=0;
           for (unsigned int i=0; i< size; ++i) {
-            pipe->_leftOut.samples[i] = (playL->samples)[k++];
-            pipe->_rightOut.samples[i] = (playR->samples)[k++];
+            pipe->_leftOut.samples[i] = playL->samples[i];
+            pipe->_rightOut.samples[i] = playR->samples[i];
           }
         }
         pipe->_mutexIO.unlock();
@@ -264,10 +294,10 @@ int AudioPipe::rtaudio_callback( void *outputBuffer, void *inputBuffer, unsigned
         }
 
         //On avance dans le temp.
-        _latencyCurrentBuffer++;
-        if (_latencyCurrentBuffer>=_latencySignalsL.size())
+        pipe->_latencyCurrentBuffer++;
+        if (pipe->_latencyCurrentBuffer>=static_cast<int>(pipe->_latencySignalsL.size()))
         {
-          _latencyCurrentBuffer=0;
+          pipe->_latencyCurrentBuffer=0;
         }
       }
     }
@@ -320,7 +350,8 @@ int AudioPipe::rtaudio_callback( void *outputBuffer, void *inputBuffer, unsigned
 
 bool AudioPipe::setInputDeviceId(int id) {
     if (isRunning()) return false;
-    if (id > (int) getDeviceCount()) return false;
+    const std::vector<unsigned int> devices = getDeviceIds();
+    if (id < 0 || std::find(devices.begin(), devices.end(), (unsigned int)id) == devices.end()) return false;
     _deviceInId = id;
     Core::instance()->settings.setValue("Audio/DeviceInId",id);
     return true;
@@ -328,7 +359,8 @@ bool AudioPipe::setInputDeviceId(int id) {
 
 bool AudioPipe::setOutputDeviceId(int id) {
     if (isRunning()) return false;
-    if (id > (int) getDeviceCount()) return false;
+    const std::vector<unsigned int> devices = getDeviceIds();
+    if (id < 0 || std::find(devices.begin(), devices.end(), (unsigned int)id) == devices.end()) return false;
     _deviceOutId = id;
     Core::instance()->settings.setValue("Audio/DeviceOutId",id);
     return true;

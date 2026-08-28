@@ -1,6 +1,6 @@
 
 #include <string>
-#include "signal/bass.h"
+#include <bass.h>
 
 #if defined(COMPILE_WINDOWS)
 #include <bassasio.h>

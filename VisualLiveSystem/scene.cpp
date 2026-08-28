@@ -1,7 +1,10 @@
 #include <QTextStream>
 #include <QtXml>
+#include <QDir>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <iostream>
+#include "../configpath.h"
 #include "core.h"
 #include "fast2dquad.h"
 #include "scene.h"
@@ -11,6 +14,7 @@ Scene::Scene()
     m_id = 0;
     m_nbLayer = 0;
     m_layer = NULL;
+    m_valid = false;
     m_time = 0.f;
     m_param[0] = QString("0");
     m_param[1] = QString("1");
@@ -38,24 +42,41 @@ Scene::~Scene()
 
 void Scene::read(const char *filename)
 {
-    QString path;
-    if(!filename)
-        path = QString("./data/scenes/open/");
-    else
-        path = QString("./data/scenes/")+QString(filename)+QString("/");
+    m_valid = false;
+    const QString sceneName = filename ? QString::fromLocal8Bit(filename) : QString("Open");
+    const QDir sceneDirectory(QDir::current().filePath(QString("data/scenes/%1").arg(sceneName)));
+    const QString configPath = QFileInfo(sceneDirectory.filePath("config.xml")).absoluteFilePath();
 
     //Parsing XML document.
     QDomDocument dom("config");
-    QFile xml_doc(path+"config.xml");
+    QFile xml_doc(configPath);
     if(!xml_doc.open(QIODevice::ReadOnly))
     {
-        QMessageBox::warning(NULL, QString("Read ")+filename+QString(" config"), QString("Can't open the file config.xml of ")+filename);
+        QMessageBox::warning(
+            NULL,
+            "Scene configuration could not be opened",
+            QString("Scene: %1\n\nFile:\n%2\n\nReason: %3\n\nThe scene will be skipped.")
+                .arg(sceneName,
+                     QDir::toNativeSeparators(configPath),
+                     xml_doc.errorString()));
         return;
     }
-    if (!dom.setContent(&xml_doc))
+
+    QString parseError;
+    int parseLine = 0;
+    int parseColumn = 0;
+    if (!dom.setContent(&xml_doc, &parseError, &parseLine, &parseColumn))
     {
         xml_doc.close();
-        QMessageBox::warning(NULL, QString("Read ")+filename+QString(" config"), "Le document XML n'a pas pu être attribué à l'objet QDomDocument.");
+        QMessageBox::warning(
+            NULL,
+            "Scene configuration is invalid",
+            QString("Scene: %1\n\nFile:\n%2\n\nXML error at line %3, column %4:\n%5\n\nThe scene will be skipped.")
+                .arg(sceneName,
+                     QDir::toNativeSeparators(configPath))
+                .arg(parseLine)
+                .arg(parseColumn)
+                .arg(parseError));
         return;
     }
 
@@ -67,6 +88,16 @@ void Scene::read(const char *filename)
         if(element.tagName() == "layer")
             m_nbLayer++;
         node = node.nextSibling();
+    }
+
+    if (m_nbLayer <= 0)
+    {
+        QMessageBox::warning(
+            NULL,
+            "Scene configuration has no layers",
+            QString("Scene: %1\n\nFile:\n%2\n\nNo <layer> elements were found. The scene will be skipped.")
+                .arg(sceneName, QDir::toNativeSeparators(configPath)));
+        return;
     }
 
     //Init new layers
@@ -94,6 +125,17 @@ void Scene::read(const char *filename)
         {
             //Get infos ..
             int id = element.attribute("id", "0").toInt();
+            if (id < 0 || id >= m_nbLayer)
+            {
+                QMessageBox::warning(
+                    NULL,
+                    "Scene layer ID is invalid",
+                    QString("Scene: %1\n\nFile:\n%2\n\nLayer ID %3 is outside the valid range 0 to %4. The scene will be skipped.")
+                        .arg(sceneName, QDir::toNativeSeparators(configPath))
+                        .arg(id)
+                        .arg(m_nbLayer - 1));
+                return;
+            }
             QString format = element.attribute("format", "rgba");
 
             QString blend = element.attribute("mode", "default");
@@ -124,7 +166,16 @@ void Scene::read(const char *filename)
             else if(format == "luminance")
                 bufferFormat = GL_LUMINANCE;
             else
-                QMessageBox::warning(NULL, QString("Scene ")+filename, QString("This layer format doesn't exist : ")+format);
+            {
+                QMessageBox::warning(
+                    NULL,
+                    "Scene layer format is invalid",
+                    QString("Scene: %1\nLayer: %2\n\nFile:\n%3\n\nUnsupported format: %4\n\nSupported formats: rgb, rgba, rgba32, luminance. The scene will be skipped.")
+                        .arg(sceneName)
+                        .arg(id)
+                        .arg(QDir::toNativeSeparators(configPath), format));
+                return;
+            }
 
             //Select mode
             if(blend == "default")
@@ -134,24 +185,55 @@ void Scene::read(const char *filename)
             else if(blend == "add")
                 m_layer[id].mode = BLEND_ADD;
             else
-                QMessageBox::warning(NULL, QString("Scene ")+filename, QString("This layer mode doesn't exist : ")+blend);
+            {
+                QMessageBox::warning(
+                    NULL,
+                    "Scene layer mode is invalid",
+                    QString("Scene: %1\nLayer: %2\n\nFile:\n%3\n\nUnsupported mode: %4\n\nSupported modes: default, alpha, add. The scene will be skipped.")
+                        .arg(sceneName)
+                        .arg(id)
+                        .arg(QDir::toNativeSeparators(configPath), blend));
+                return;
+            }
 
             //Compute shader
             QString filePath = element.attribute("value", "none");
-            int ok;
-            if(filePath != "none")
+            int ok = SHADER_FRAGMENT_ERROR;
+            if(filePath == "none")
             {
-                QFile file(path+filePath);
+                QMessageBox::warning(
+                    NULL,
+                    "Scene shader is not specified",
+                    QString("Scene: %1\n\nFile:\n%2\n\nLayer %3 has no shader file in its value attribute. The scene will be skipped.")
+                        .arg(sceneName, QDir::toNativeSeparators(configPath))
+                        .arg(id));
+                return;
+            }
+            else
+            {
+                const QString shaderPath = ConfigPath::resolve(sceneDirectory, filePath);
+                QFile file(shaderPath);
                 QString strings;
-                if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+                if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
                 {
-                    QTextStream in(&file);
-                    while (!in.atEnd()) {
-                        strings += in.readLine()+"\n";
-                    }
+                    QMessageBox::warning(
+                        NULL,
+                        "Scene shader could not be opened",
+                        QString("Scene: %1\nLayer: %2\n\nShader file:\n%3\n\nReason: %4\n\nThe scene will be skipped.")
+                            .arg(sceneName)
+                            .arg(id)
+                            .arg(QDir::toNativeSeparators(shaderPath), file.errorString()));
+                    return;
+                }
+
+                QTextStream in(&file);
+                while (!in.atEnd()) {
+                    strings += in.readLine()+"\n";
                 }
                 m_layer[id].shader = new Shader();
-                ok = m_layer[id].shader->compil(Core::instance()->getVertexShader(),strings.toStdString().c_str());
+                ok = m_layer[id].shader->compil(Core::instance()->getVertexShader(),
+                                                strings.toStdString().c_str(),
+                                                shaderPath);
             }
 
 
@@ -170,8 +252,9 @@ void Scene::read(const char *filename)
             }
             else
             {
-                return;
                 delete m_layer[id].shader;
+                m_layer[id].shader = NULL;
+                return;
             }
 
             //Load channel
@@ -188,7 +271,10 @@ void Scene::read(const char *filename)
                         if( e.attribute("type", "") == "image" )
                         {
                             m_layer[id].channel[textureID] = new Texture();
-                            m_layer[id].channel[textureID]->load("./data/textures/"+e.attribute("value", "none").toStdString());
+                            const QDir textureDirectory(QDir::current().filePath("data/textures"));
+                            const QString texturePath = ConfigPath::resolve(
+                                textureDirectory, e.attribute("value", "none"));
+                            m_layer[id].channel[textureID]->load(texturePath.toStdString());
                         }
                         else if( e.attribute("type", "") == "layer" )
                         {
@@ -198,17 +284,39 @@ void Scene::read(const char *filename)
                         textureID++;
                     }
                     else
-                        QMessageBox::warning(NULL, QString("Read ")+filename+QString(" config"), QString("Too many textures (max is 4)"));
+                    {
+                        QMessageBox::warning(
+                            NULL,
+                            "Scene has too many texture channels",
+                            QString("Scene: %1\nLayer: %2\n\nFile:\n%3\n\nA layer can use at most four <channel> elements. The scene will be skipped.")
+                                .arg(sceneName)
+                                .arg(id)
+                                .arg(QDir::toNativeSeparators(configPath)));
+                        return;
+                    }
                 }
                 n = n.nextSibling();
             }
         }
         else if(element.tagName() == "param")
         {
-            m_param[element.attribute("id", "0").toInt()] = element.attribute("value","none");
+            const int parameterId = element.attribute("id", "0").toInt();
+            if (parameterId < 0 || parameterId >= 4)
+            {
+                QMessageBox::warning(
+                    NULL,
+                    "Scene parameter ID is invalid",
+                    QString("Scene: %1\n\nFile:\n%2\n\nParameter ID %3 is outside the valid range 0 to 3. The scene will be skipped.")
+                        .arg(sceneName, QDir::toNativeSeparators(configPath))
+                        .arg(parameterId));
+                return;
+            }
+            m_param[parameterId] = element.attribute("value","none");
         }
         node = node.nextSibling();
     }
+
+    m_valid = true;
 }
 
 void Scene::resetTime()
@@ -218,6 +326,9 @@ void Scene::resetTime()
 
 void Scene::compute()
 {
+    if (!m_valid)
+        return;
+
     m_time += float(m_QTime.elapsed())*0.001f*Core::instance()->getTimeSpeed();
     m_QTime.restart();
 
@@ -337,6 +448,9 @@ void Scene::compute()
 
 void Scene::draw()
 {
+    if (!m_valid)
+        return;
+
     if(m_nbLayer>0)
     {
         glActiveTexture(GL_TEXTURE0);
@@ -347,6 +461,9 @@ void Scene::draw()
 
 void Scene::setPreview(bool t)
 {
+    if (!m_valid)
+        return;
+
     if(t)
     {
         for(int i=0; i<m_nbLayer; i++)

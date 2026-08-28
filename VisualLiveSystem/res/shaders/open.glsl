@@ -103,7 +103,7 @@ float getAO(vec3 p, vec3 n, vec2 a)
         return clamp(1.0 - oc, 0.0, 1.0);
 }
 
-float getAmbiantOcclusion(vec3 p, vec3 n, float d=1., int ite=6)
+float getAmbiantOcclusion(vec3 p, vec3 n, float d, int ite)
 {
     float dlt = 0.0;
     float oc = 0.0;

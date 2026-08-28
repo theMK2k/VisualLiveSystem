@@ -4,18 +4,24 @@
 #
 #-------------------------------------------------
 
-QT       += core gui opengl xml
+QT       += core gui widgets opengl xml
 
 TARGET = SceneEditor
 TEMPLATE = app
+CONFIG += c++11
 
-RC_FILE = ressource.rc
+DESTDIR = $$PWD/../release
 
-INCLUDEPATH += C:/Coding/Librarys/include
-LIBS        += -LC:/Coding/Librarys/lib/32
+win32 {
+    RC_FILE = ressource.rc
+    INCLUDEPATH += C:/Coding/Librarys/include
+    LIBS += -LC:/Coding/Librarys/lib/32
+    LIBS += -lwinmm -lole32 -lGLEW32 -ldsound
+}
 
-
-LIBS += -lwinmm -lole32 -lGLEW32 -ldsound
+unix {
+    LIBS += -lGLEW -lGLU
+}
 
 
 SOURCES += main.cpp\
@@ -38,6 +44,7 @@ SOURCES += main.cpp\
     aboutwidget.cpp
 
 HEADERS  += mainwindow.h \
+    ../configpath.h \
     texture.h \
     shader.h \
     scene.h \

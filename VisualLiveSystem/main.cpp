@@ -1,9 +1,12 @@
-#include <QtGui/QApplication>
+#include <QApplication>
+#include <QDir>
 #include <QFile>
+#include <QMessageBox>
 #include <QTextStream>
 #include "mainwindow.h"
 #include "core.h"
 
+#include <cstdlib>
 #include <iostream>
 #include <map>
 
@@ -32,6 +35,22 @@ int main(int argc, char *argv[])
 
     QApplication a(argc, argv);
 
+    const QString applicationDirectory = QCoreApplication::applicationDirPath();
+    if (!QDir::setCurrent(applicationDirectory))
+    {
+        QMessageBox::critical(NULL,
+                              "Startup directory error",
+                              QString("Visual Live System could not use its application directory.\n\n"
+                                      "Directory: %1\n\n"
+                                      "The data files cannot be loaded.")
+                                  .arg(QDir::toNativeSeparators(applicationDirectory)));
+        return EXIT_FAILURE;
+    }
+
+    // Some OpenGL widgets initialize while MainWindow is still being built.
+    // A diagnostic dialog must not make Qt quit before the main window is shown.
+    a.setQuitOnLastWindowClosed(false);
+
     QCoreApplication::setOrganizationName("Razor 1911");
     QCoreApplication::setOrganizationDomain("http://razor1911.com/");
     QCoreApplication::setApplicationName("Visual Live System");
@@ -43,6 +62,7 @@ int main(int argc, char *argv[])
 
     MainWindow w;
     w.showMaximized();
+    a.setQuitOnLastWindowClosed(true);
     
     return a.exec();
 }

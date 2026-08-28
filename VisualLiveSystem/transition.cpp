@@ -1,7 +1,10 @@
 #include <QTextStream>
 #include <QtXml>
+#include <QDir>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <iostream>
+#include "../configpath.h"
 #include "core.h"
 #include "fast2dquad.h"
 #include "transition.h"
@@ -27,20 +30,40 @@ Transition::~Transition()
 
 void Transition::read(const char *filename)
 {
-    QString path = QString("./data/transitions/")+QString(filename)+QString("/");
+    const QString transitionName = filename ? QString::fromLocal8Bit(filename) : QString("Unknown transition");
+    const QDir transitionDirectory(
+        QDir::current().filePath(QString("data/transitions/%1").arg(transitionName)));
+    const QString configPath = QFileInfo(transitionDirectory.filePath("config.xml")).absoluteFilePath();
 
     //Parsing XML document.
     QDomDocument dom("config");
-    QFile xml_doc(path+"config.xml");
+    QFile xml_doc(configPath);
     if(!xml_doc.open(QIODevice::ReadOnly))
     {
-        QMessageBox::warning(NULL, QString("Error"), QString("Can't open the file config.xml of ")+filename);
+        QMessageBox::warning(
+            NULL,
+            "Transition configuration could not be opened",
+            QString("Transition: %1\n\nFile:\n%2\n\nReason: %3\n\nThe transition will be skipped.")
+                .arg(transitionName,
+                     QDir::toNativeSeparators(configPath),
+                     xml_doc.errorString()));
         return;
     }
-    if (!dom.setContent(&xml_doc))
+
+    QString parseError;
+    int parseLine = 0;
+    int parseColumn = 0;
+    if (!dom.setContent(&xml_doc, &parseError, &parseLine, &parseColumn))
     {
         xml_doc.close();
-        QMessageBox::warning(NULL, QString("Error"), QString("Can't parse : ")+filename);
+        QMessageBox::warning(
+            NULL,
+            "Transition configuration is invalid",
+            QString("Transition: %1\n\nFile:\n%2\n\nXML error at line %3, column %4:\n%5\n\nThe transition will be skipped.")
+                .arg(transitionName, QDir::toNativeSeparators(configPath))
+                .arg(parseLine)
+                .arg(parseColumn)
+                .arg(parseError));
         return;
     }
     QDomNode node = dom.documentElement().firstChild();
@@ -57,20 +80,41 @@ void Transition::read(const char *filename)
         {
             //Compute shader
             QString filePath = element.attribute("value", "none");
-            int ok;
-            if(filePath != "none")
+            int ok = SHADER_FRAGMENT_ERROR;
+            if(filePath == "none")
             {
-                QFile file(path+filePath);
+                QMessageBox::warning(
+                    NULL,
+                    "Transition shader is not specified",
+                    QString("Transition: %1\n\nFile:\n%2\n\nThe <pass> element has no shader file in its value attribute. The transition will be skipped.")
+                        .arg(transitionName, QDir::toNativeSeparators(configPath)));
+                return;
+            }
+            else
+            {
+                const QString shaderPath = ConfigPath::resolve(transitionDirectory, filePath);
+                QFile file(shaderPath);
                 QString strings;
-                if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+                if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
                 {
-                    QTextStream in(&file);
-                    while (!in.atEnd()) {
-                        strings += in.readLine()+"\n";
-                    }
+                    QMessageBox::warning(
+                        NULL,
+                        "Transition shader could not be opened",
+                        QString("Transition: %1\n\nShader file:\n%2\n\nReason: %3\n\nThe transition will be skipped.")
+                            .arg(transitionName,
+                                 QDir::toNativeSeparators(shaderPath),
+                                 file.errorString()));
+                    return;
+                }
+
+                QTextStream in(&file);
+                while (!in.atEnd()) {
+                    strings += in.readLine()+"\n";
                 }
                 m_shader = new Shader();
-                ok = m_shader->compil(Core::instance()->getVertexShader(),strings.toStdString().c_str());
+                ok = m_shader->compil(Core::instance()->getVertexShader(),
+                                      strings.toStdString().c_str(),
+                                      shaderPath);
             }
 
 
@@ -85,8 +129,9 @@ void Transition::read(const char *filename)
             }
             else
             {
-                return;
                 delete m_shader;
+                m_shader = NULL;
+                return;
             }
         }
         node = node.nextSibling();
@@ -101,6 +146,9 @@ void Transition::start()
 
 void Transition::draw()
 {
+    if (!m_shader)
+        return;
+
     float time = float(m_time.elapsed())/1000.f;
 
     glEnable(GL_TEXTURE_1D);

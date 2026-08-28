@@ -36,8 +36,8 @@ signals:
 
 };
 
-#include "signal/bass.h"
-#include "signal/bassflac.h"
+#include <bass.h>
+#include <bassflac.h>
 
 class BassDecoder : public Decoder
 {
@@ -58,7 +58,7 @@ public slots:
 
 
 protected:
-    HANDLE _music;
+    DWORD _music;
     bool _mod;
     bool _ended;
     BASS_CHANNELINFO _infos;

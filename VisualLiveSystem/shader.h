@@ -3,6 +3,7 @@
 
 
 #include <GL/glew.h>
+#include <QString>
 
 #define SHADER_SUCCESS        1
 #define SHADER_VERTEX_ERROR   2
@@ -14,7 +15,8 @@ public:
 	Shader();
 	~Shader();
 	
-	int compil(const char *vertex, const char *fragment);
+	int compil(const char *vertex, const char *fragment, const QString& sourceName = QString());
+	bool isValid() const { return m_program != 0; }
 	
 	void enable();
 	void disable();
@@ -25,7 +27,7 @@ public:
 	void sendf(const char *name, float x, float y, float z);
 	void sendf(const char *name, float x, float y, float z, float w);
 private:
-	bool makeShader(const char *txt, GLuint type);
+	bool makeShader(const char *txt, GLuint type, QString& errorLog);
 	GLuint m_program;
 };
 

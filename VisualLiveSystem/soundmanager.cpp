@@ -217,21 +217,18 @@ void SoundManager::refreshDeviceList()
 
     _pipe->stop();
 
-    unsigned int devices = _pipe->getDeviceCount();
+    const std::vector<unsigned int> devices = _pipe->getDeviceIds();
     RtAudio::DeviceInfo info;
-    for ( unsigned int i=0; i<devices; i++ )
+    for (std::vector<unsigned int>::const_iterator device = devices.begin(); device != devices.end(); ++device)
     {
-        info =  _pipe->getDeviceInfo( i );
-        if ( info.probed == true )
-        {
-            if (info.inputChannels) {
-                ui->listInputDevices->addItem( QString( info.name.c_str() )+" ("+QString::number(info.inputChannels)+" channels)" );
-                _inputTable.append(i);
-            }
-            if (info.outputChannels) {
-                ui->listOutputDevices->addItem( QString( info.name.c_str() )+" ("+QString::number(info.outputChannels)+" channels)" );
-                _outputTable.append(i);
-            }
+        info = _pipe->getDeviceInfo(*device);
+        if (info.inputChannels) {
+            ui->listInputDevices->addItem( QString( info.name.c_str() )+" ("+QString::number(info.inputChannels)+" channels)" );
+            _inputTable.append(*device);
+        }
+        if (info.outputChannels) {
+            ui->listOutputDevices->addItem( QString( info.name.c_str() )+" ("+QString::number(info.outputChannels)+" channels)" );
+            _outputTable.append(*device);
         }
     }
     if(_inputTable.size() > 0 && _outputTable.size() > 0) {

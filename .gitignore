@@ -1,0 +1,19 @@
+# Qt Creator
+*.pro.user
+*.pro.user.*
+
+# qmake shadow builds
+/build-*/
+
+# In-source qmake artifacts
+Makefile
+Makefile.*
+.qmake.stash
+*.o
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# Compiled applications
+/release/VisualLiveSystem
+/release/SceneEditor

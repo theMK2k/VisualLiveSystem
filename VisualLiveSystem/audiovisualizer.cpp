@@ -1,4 +1,5 @@
 #include <QFile>
+#include <QMessageBox>
 #include <QTextStream>
 #include <QTimer>
 
@@ -26,11 +27,19 @@ AudioVisualizer::~AudioVisualizer()
 //-----------------------------------------------------------------------------
 void AudioVisualizer::initializeGL()
 {
-    QFile f(":res/shaders/audiovisualizer.glsl");
-    f.open(QFile::ReadOnly | QFile::Text);
+    QFile f(":/res/shaders/audiovisualizer.glsl");
+    if (!f.open(QFile::ReadOnly | QFile::Text))
+    {
+        QMessageBox::critical(this,
+                              "Built-in shader could not be opened",
+                              QString("Resource: :/res/shaders/audiovisualizer.glsl\n\nReason: %1")
+                                  .arg(f.errorString()));
+    }
     QTextStream ts(&f);
     m_shader = new Shader();
-    m_shader->compil(Core::instance()->getVertexShader(), ts.readAll().toStdString().c_str());
+    m_shader->compil(Core::instance()->getVertexShader(),
+                     ts.readAll().toStdString().c_str(),
+                     ":/res/shaders/audiovisualizer.glsl");
     m_shader->enable();
     m_shader->sendi("spectrum", 0 );
     m_shader->disable();

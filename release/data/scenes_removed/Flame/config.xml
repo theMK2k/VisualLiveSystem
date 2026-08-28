@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<Scene>
+	
+    <layer id="0" value="scene.glsl" width="640" height="360"/>
+    <layer id="1" value="glow.glsl" width="320" height="180" mode="add"/>
+    <layer id="2" value="godrays.glsl" width="320" height="180" mode="add"/>
+</Scene>

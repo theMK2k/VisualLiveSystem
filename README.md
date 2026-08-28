@@ -9,20 +9,36 @@ Midi controllers is supported.
 
 More details soon.
 
-## Setup:
+## Setup
 
-Dependencies:
-* [qt 4.8](http://download.qt.io/archive/qt/4.8/4.8.4/)
-* [bass](http://www.un4seen.com/)
-* [bassflac](http://www.un4seen.com/)
-* [rtaudio](https://www.music.mcgill.ca/~gary/rtaudio/)
-* [portmidi](http://portmedia.sourceforge.net/portmidi/)
-* [glew](http://glew.sourceforge.net/)
+The Linux build targets Qt 5.15 and uses the project-local RtAudio, PortMidi,
+BASS, and BASSFLAC files under `third_party`. The system must provide a C++
+compiler, qmake, Make, Qt 5 Core/Gui/Widgets/OpenGL/XML, GLEW, and GLU. On
+Arch/CachyOS these are supplied by `base-devel`, `qt5-base`, `glew`, and `glu`.
 
+Build both applications from a separate build directory:
 
-Compile:
- * Open /VisualLiveSystem/VisualLiveSystem.pro with Qt Creator, setup the binary output to /release and compil it.
- * You can do the same thing with /SceneEditor.
+```bash
+mkdir -p build-qt5
+cd build-qt5
+qmake ../VisualLiveSystem.pro CONFIG+=release
+make -j"$(nproc)"
+```
+
+The executables are written to `release`. They automatically use that directory
+for `data` and `settings.ini`, so they can be launched by absolute path or from
+another working directory.
+
+```bash
+/home/mk2k/Data/Code/CPP/VisualLiveSystem/release/VisualLiveSystem
+# or
+/home/mk2k/Data/Code/CPP/VisualLiveSystem/release/SceneEditor
+```
+
+If a scene configuration or shader is invalid, the dialog identifies the
+scene, exact file path, and reason. Shader dialogs include the OpenGL compiler
+output under **Show Details**; the failing effect is skipped so the main window
+can remain open.
 
 
 ## Usage:

@@ -1,4 +1,6 @@
 #include <iostream>
+#include <QDir>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QTimer>
 
@@ -92,7 +94,14 @@ void RenderWidget::initializeGL()
     m_finalPostFX = new Shader();
     QFile file(":/res/shaders/postprocess.glsl");
     QString strings;
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        QMessageBox::critical(this,
+                              "Built-in shader could not be opened",
+                              QString("Resource: :/res/shaders/postprocess.glsl\n\nReason: %1")
+                                  .arg(file.errorString()));
+    }
+    else
     {
         QTextStream in(&file);
         while (!in.atEnd()) {
@@ -100,7 +109,9 @@ void RenderWidget::initializeGL()
         }
     }
 
-    m_finalPostFX->compil(Core::instance()->getVertexShader(),strings.toStdString().c_str());
+    m_finalPostFX->compil(Core::instance()->getVertexShader(),
+                          strings.toStdString().c_str(),
+                          ":/res/shaders/postprocess.glsl");
 
 
     {
@@ -235,15 +246,25 @@ void RenderWidget::loadPostEffects(QList<QListWidgetItem *> list)
         for(int i=0; i<list.size(); i++)
         {
             QString path = QString("./data/postFX/")+list.at(i)->text();
+            const QString shaderPath = QFileInfo(path).absoluteFilePath();
 
-            QFile file(path);
+            QFile file(shaderPath);
             QString strings;
-            if (file.open(QIODevice::ReadOnly | QIODevice::Text))
+            if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
             {
-                QTextStream in(&file);
-                while (!in.atEnd()) { strings += in.readLine()+"\n"; }
+                QMessageBox::warning(
+                    this,
+                    "Post-processing shader could not be opened",
+                    QString("Shader file:\n%1\n\nReason: %2\n\nThe effect will be skipped.")
+                        .arg(QDir::toNativeSeparators(shaderPath), file.errorString()));
+                continue;
             }
-            m_postFX[i].compil(Core::instance()->getVertexShader(),strings.toStdString().c_str());
+
+            QTextStream in(&file);
+            while (!in.atEnd()) { strings += in.readLine()+"\n"; }
+            m_postFX[i].compil(Core::instance()->getVertexShader(),
+                               strings.toStdString().c_str(),
+                               shaderPath);
 
             loading->set(i*10/list.size());
         }

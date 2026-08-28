@@ -1,3 +1,5 @@
+#include <GL/glew.h>
+
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QtXml>
@@ -106,7 +108,7 @@ void NewShader::ok()
     if(!dom.setContent(xml_doc.readAll()))
     {
         xml_doc.close();
-        QMessageBox::warning(NULL, QString("Read ")+Core::instance()->getEffectName()+QString(" config"), "Le document XML n'a pas pu être attribué à l'objet QDomDocument.");
+        QMessageBox::warning(NULL, QString("Read ")+Core::instance()->getEffectName()+QString(" config"), "Le document XML n'a pas pu Ãªtre attribuÃ© Ã  l'objet QDomDocument.");
         return;
     }
     xml_doc.close();

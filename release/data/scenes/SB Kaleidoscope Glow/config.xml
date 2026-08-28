@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<Scene>
+	<param id="0" value="Offset  "/>
+	<param id="1" value="Bass FX"/>
+	<param id="2" value=""/>
+	<param id="3" value=""/>
+
+	<layer id="0" value="Kaleidoscope Glow.glsl">
+	</layer>
+
+<!--
+	<layer id="1" value="../../MK_PostFX/FXAA.glsl" width="853" height="480">
+	</layer>
+-->
+
+        <layer id="1" value="../../MK_PostFX/godrays.glsl">
+	</layer>
+<!--
+	<layer id="1" value="../../MK_PostFX/brightness.glsl">
+	</layer>
+-->
+</Scene>

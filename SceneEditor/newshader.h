@@ -2,8 +2,8 @@
 #define NEWSHADER_H
 
 #include <QWidget>
+#include <QLineEdit>
 #include <QtXml>
-#include <QtGui>
 
 namespace Ui {
 class newShader;

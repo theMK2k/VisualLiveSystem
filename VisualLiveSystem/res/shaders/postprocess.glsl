@@ -12,7 +12,7 @@ void main()
         uv = uv * 0.5 + 0.5;
 
 
-        vec3 col = texture2D(texture,uv);
+        vec3 col = texture2D(texture,uv).rgb;
 	col = pow( col, vec3(gamma) );
 	vec3 gray = vec3(dot(col,vec3(0.33)));
 	col *= 1.+brightness;

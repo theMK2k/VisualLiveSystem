@@ -10,7 +10,7 @@
 #include <QTime>
 #include <QThread>
 
-#include <RTAudio.h>
+#include <RtAudio.h>
 #include "FFTAnalyzer.h"
 
 #include "signal/audiopipe.hpp"
